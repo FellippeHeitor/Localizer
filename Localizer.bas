@@ -10,7 +10,7 @@ END TYPE
 
 REDIM SHARED strings(1000) AS STRING
 REDIM SHARED item(1000) AS new_item
-DIM index AS LONG, file$, line$, strAssign AS LONG, endStrAssign AS LONG
+DIM index AS LONG, totalSelected AS LONG, file$, line$, strAssign AS LONG, endStrAssign AS LONG
 DIM thisStr$, u$, s$
 DIM i AS LONG, j AS LONG, oldi AS LONG, y AS LONG
 DIM k AS LONG, startPos AS _UNSIGNED LONG
@@ -32,13 +32,16 @@ DO
 
     strAssign = 0
     DO
-        strAssign = INSTR(strAssign + 1, line$, "= " + CHR$(34))
+        strAssign = INSTR(strAssign + 1, line$, CHR$(34)) '"= " + CHR$(34))
         IF strAssign = 0 THEN EXIT DO
 
-        endStrAssign = INSTR(strAssign + 3, line$, CHR$(34))
+        endStrAssign = INSTR(strAssign + 1, line$, CHR$(34))
+
+        IF endStrAssign = strAssign + 1 THEN strAssign = strAssign + 1: endStrAssign = 0
+
         IF endStrAssign = 0 THEN _CONTINUE
 
-        thisStr$ = MID$(line$, strAssign + 3, (endStrAssign - strAssign) - 3)
+        thisStr$ = MID$(line$, strAssign + 1, (endStrAssign - strAssign) - 1)
 
         IF LEN(thisStr$) THEN
             index = index + 1
@@ -60,7 +63,6 @@ CLOSE #1
 IF index = 0 THEN END
 
 u$ = STRING$(LEN(LTRIM$(STR$(index))), "#") + " "
-s$ = "Total strings found:" + STR$(index)
 
 i = 1
 j = 1
@@ -70,8 +72,6 @@ DO
 
     WHILE _MOUSEINPUT
         i = i + _MOUSEWHEEL * 5
-        IF i < 1 THEN i = 1
-        IF i > index THEN i = index
     WEND
 
     IF oldi <> i THEN j = 1
@@ -82,29 +82,40 @@ DO
     IF k& = 18432 THEN i = i + (i > 1)
     IF k& = 20480 THEN i = i - (i < index)
 
+    IF i + (_HEIGHT - 2) > index THEN i = index - (_HEIGHT - 2)
+    IF i < 1 THEN i = 1
+
     CLS
 
     FOR y = i TO index
         IF y - i + 1 > _HEIGHT - 1 THEN EXIT FOR
         LOCATE y - i + 1, 1
         COLOR 8
+        IF INT(_MOUSEY + .5) = y - i + 1 OR item(y).selected THEN COLOR 15
         PRINT USING u$; y;
-        COLOR 15
-        IF item(y).selected THEN COLOR , 6
+
+        COLOR 7
+        IF item(y).selected THEN COLOR 15, 6 ELSE IF INT(_MOUSEY + .5) = y - i + 1 THEN COLOR 15
+
         IF INT(_MOUSEY + .5) = y - i + 1 THEN
-            IF item(y).selected THEN COLOR 6, 1 ELSE COLOR 0, 7
+            'IF item(y).selected THEN COLOR 15, 1 ELSE COLOR 0, 7
             IF _MOUSEBUTTON(1) THEN
                 WHILE _MOUSEBUTTON(1): WHILE _MOUSEINPUT: WEND: WEND
-                IF INT(_MOUSEY + .5) = y - i + 1 THEN item(y).selected = true
+                IF INT(_MOUSEY + .5) = y - i + 1 THEN
+                    item(y).selected = NOT item(y).selected
+                    IF item(y).selected THEN totalSelected = totalSelected + 1 ELSE totalSelected = totalSelected - 1
+                END IF
             END IF
         END IF
+
         PRINT MID$(strings(y), j, 80 - LEN(u$));
-        IF POS(1) < 80 THEN PRINT SPACE$(80 - POS(1));
+        IF item(y).selected THEN IF POS(1) < 80 THEN PRINT SPACE$(81 - POS(1));
         COLOR , 0
     NEXT
 
     COLOR 14
-    _PRINTSTRING (1, 25), STRING$(80, "-")
+    _PRINTSTRING (1, 25), STRING$(80, 205)
+    s$ = "Total strings selected:" + STR$(totalSelected) + "/" + LTRIM$(STR$(index))
     LOCATE 25, 76 - LEN(s$)
     PRINT s$;
 
